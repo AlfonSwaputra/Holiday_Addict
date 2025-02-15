@@ -1,0 +1,11 @@
+# Mengaktifkan mod_rewrite
+RewriteEngine On
+
+# Rewrite rule untuk halaman utama
+RewriteRule ^home$ pages/home.php [L]
+RewriteRule ^recommendation$ pages/recommendation.php [L]
+RewriteRule ^blog$ pages/blog.php [L]
+RewriteRule ^favorite$ pages/favorite.php [L]
+
+# Redirect jika halaman tidak ditemukan (404 Error)
+ErrorDocument 404 /pages/404.php
