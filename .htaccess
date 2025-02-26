@@ -1,11 +1,19 @@
-# Mengaktifkan mod_rewrite
-RewriteEngine On
+# Pastikan mod_rewrite diaktifkan
+<IfModule mod_rewrite.c>
+    RewriteEngine On
 
-# Rewrite rule untuk halaman utama
-RewriteRule ^home$ pages/home.php [L]
-RewriteRule ^recommendation$ pages/recommendation.php [L]
-RewriteRule ^blog$ pages/blog.php [L]
-RewriteRule ^favorite$ pages/favorite.php [L]
+    # Rewrite rule untuk halaman utama
+    RewriteRule ^home/?$ pages/home.php [L]
+    RewriteRule ^recommendation/?$ pages/recommendation.php [L]
+    RewriteRule ^blog/?$ pages/blog.php [L]
+    RewriteRule ^favorite/?$ pages/favorite.php [L]
+    RewriteRule ^contact/?$ pages/contact.php [L]
+    RewriteRule ^contact/?$ pages/privacy-policy.php [L]
 
-# Redirect jika halaman tidak ditemukan (404 Error)
-ErrorDocument 404 /pages/404.php
+    # Redirect jika halaman tidak ditemukan (404 Error)
+    ErrorDocument 404 /pages/404.php
+
+    # Mencegah akses langsung ke file PHP di dalam folder "pages"
+    RewriteCond %{THE_REQUEST} \s/pages/ [NC]
+    RewriteRule ^ - [F]
+</IfModule>

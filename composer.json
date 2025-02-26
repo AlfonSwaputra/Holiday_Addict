@@ -1,0 +1,20 @@
+{
+    "name": "user/holiday_addict",
+    "description": "Holiday Addict Web Application",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "User\\HolidayAddict\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "progammer4.0",
+            "email": "66018996+AlfonSwaputra@users.noreply.github.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "vlucas/phpdotenv": "^5.6"
+    }
+}

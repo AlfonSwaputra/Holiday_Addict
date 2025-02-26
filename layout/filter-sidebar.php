@@ -82,17 +82,17 @@
         </section>
 
         <ul class="nav-top">
-        <li><a href="../pages/home.php" class="btn btn-light"><i class="fa-solid fa-house fa-lg"></i>Home</a></li>
-            <li><a href="../pages/recommendation.php" class="btn btn-light"><i class="fa-solid fa-location-dot fa-xl"></i> Recommendation</a></li>
-            <li><a href="../pages/blog.php" class="btn btn-light"><i class="fa-solid fa-book fa-lg"></i> Blog</a></li>
-            <li><a href="../pages/favorite.php" class="btn btn-light"><i class="fa-solid fa-heart fa-lg"></i> Favorite</a></li>
+            <li><a href="home.php" class="btn btn-light"><i class="fa-solid fa-house fa-lg"></i>Home</a></li>
+            <li><a href="recommendation.php" class="btn btn-light"><i class="fa-solid fa-location-dot fa-xl"></i> Recommendation</a></li>
+            <li><a href="blog.php" class="btn btn-light"><i class="fa-solid fa-book fa-lg"></i> Blog</a></li>
+            <li><a href="favorite.php" class="btn btn-light"><i class="fa-solid fa-heart fa-lg"></i> Favorite</a></li>
         </ul>
 
         <hr class="dashed-line">
 
         <ul class="nav-bottom">
-            <li><a href="#" class="btn btn-light"><i class="fa-solid fa-comment-dots fa-lg"></i> Contact Me</a></li>
-            <li><a href="#" class="btn btn-light"><i class="fa-solid fa-shield-halved fa-lg"></i> Privacy and Policy</a></li>
+            <li><a href="contact.php" class="btn btn-light"><i class="fa-solid fa-comment-dots fa-lg"></i> Contact Me</a></li>
+            <li><a href="privacy-policy.php" class="btn btn-light"><i class="fa-solid fa-shield-halved fa-lg"></i> Privacy and Policy</a></li>
             <li><a href="#" class="btn btn-light" id="googleLogoutBtn"><i class="fa-solid fa-arrow-right-from-bracket fa-lg"></i> Sign Out</a></li>
         </ul>
     </nav>

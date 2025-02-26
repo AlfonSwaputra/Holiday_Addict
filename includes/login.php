@@ -1,58 +1,131 @@
 <?php
+// Tambahkan di paling atas file
+header('Content-Type: application/json');
+
 session_start();
 require 'function.php';
+
+// Pastikan koneksi database tersedia
 global $conn;
 
-// Login Manual
-if (isset($_POST["signIn"])) {
-    $email = $_POST["emailLog"];
-    $password = $_POST["passwordLog"];
+try {
+    if (!$conn) {
+        throw new Exception("Koneksi database gagal");
+    }
 
-    $stmt = $conn->prepare("SELECT * FROM users WHERE email_user = :email");
-    $stmt->bindParam(":email", $email);
-    $stmt->execute();
+    // Login Manual
+    if (isset($_POST["signIn"])) {
+        $email = $_POST["emailLog"] ?? "";
+        $password = $_POST["passwordLog"] ?? "";
 
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($row) {
-        if (password_verify($password, $row["password_user"])) {
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || empty($password)) {
+            http_response_code(400);
+            echo json_encode(["error" => "Format email tidak valid atau password kosong"]);
+            exit;
+        }
+
+        $stmt = $conn->prepare("SELECT * FROM users WHERE email_user = :email");
+        $stmt->bindParam(":email", $email);
+        $stmt->execute();
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row && password_verify($password, $row["password_user"])) {
+            // Set session untuk user yang login
             $_SESSION["user"] = [
                 "id" => $row["id_user"],
                 "name" => $row["name_user"],
                 "email" => $row["email_user"]
             ];
-            header("Location: ../pages/home.php");
+
+            // Periksa dan buat preferensi jika belum ada
+            ensureUserPreferences($row["id_user"], $conn);
+
+            echo json_encode([
+                "message" => "Login berhasil",
+                "user" => [
+                    "id" => $row["id_user"],
+                    "name" => $row["name_user"],
+                    "email" => $row["email_user"]
+                ]
+            ]);
             exit;
         }
+
+        // Jika login gagal
+        http_response_code(401);
+        echo json_encode(["error" => "Email atau password salah"]);
+        exit;
     }
-    $error = true;
-}
 
-// Login dengan Google Firebase
-$data = json_decode(file_get_contents("php://input"), true);
-if (isset($data["uid"]) && isset($data["email"]) && isset($data["name"])) {
-    $uid = $data["uid"];
-    $email = $data["email"];
-    $name = $data["name"];
+    // Login dengan Google Firebase
+    $data = json_decode(file_get_contents("php://input"), true);
+    if (isset($data["uid"], $data["email"], $data["name"])) {
+        $uid = $data["uid"];
+        $email = $data["email"];
+        $name = $data["name"];
 
-    $stmt = $conn->prepare("SELECT * FROM users WHERE email_user = :email");
-    $stmt->bindParam(":email", $email);
-    $stmt->execute();
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || empty($name)) {
+            http_response_code(400);
+            echo json_encode(["error" => "Format email tidak valid atau nama kosong"]);
+            exit;
+        }
 
-    if ($stmt->rowCount() === 0) {
-        $stmt = $conn->prepare("INSERT INTO users (id_user, name_user, email_user) VALUES (:uid, :name, :email)");
-        $stmt->bindParam(":uid", $uid);
-        $stmt->bindParam(":name", $name);
+        // Cek atau buat user
+        $stmt = $conn->prepare("
+            INSERT INTO users (id_user, name_user, email_user) 
+            VALUES (:uid, :name, :email) 
+            ON DUPLICATE KEY UPDATE 
+            name_user = :name
+        ");
+        $stmt->execute([
+            ':uid' => $uid,
+            ':name' => $name,
+            ':email' => $email
+        ]);
+
+        // Ambil data pengguna
+        $stmt = $conn->prepare("SELECT * FROM users WHERE email_user = :email");
         $stmt->bindParam(":email", $email);
         $stmt->execute();
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user) {
+            http_response_code(500);
+            echo json_encode(["error" => "Gagal mengambil data pengguna"]);
+            exit;
+        }
+
+        // Set session
+        $_SESSION["user"] = [
+            "id" => $user["id_user"],
+            "name" => $user["name_user"],
+            "email" => $user["email_user"]
+        ];
+
+        // Pastikan preferensi ada
+        ensureUserPreferences($user["id_user"], $conn);
+
+        echo json_encode([
+            "message" => "Login berhasil",
+            "user" => [
+                "id" => $user["id_user"],
+                "name" => $user["name_user"],
+                "email" => $user["email_user"]
+            ]
+        ]);
+        exit;
     }
 
-    $_SESSION["user"] = [
-        "id" => $uid,
-        "name" => $name,
-        "email" => $email
-    ];
+    // Jika tidak ada request yang cocok
+    http_response_code(400);
+    echo json_encode(["error" => "Permintaan tidak valid"]);
+    exit;
 
-    echo json_encode(["message" => "Login berhasil"]);
+} catch (Exception $e) {
+    // Tangkap semua kesalahan yang mungkin terjadi
+    error_log("Login Error: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(["error" => "Terjadi kesalahan: " . $e->getMessage()]);
     exit;
 }
 ?>

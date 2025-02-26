@@ -1,22 +1,67 @@
 <?php
-// session_start();
+session_start();
+require '../includes/db.php';
 require '../includes/function.php';
 
-// if (!isset($_SESSION["user"])) {
-//     header("Location: ../index.php");
-//     exit;
-// }
+// Pastikan user sudah login
+if (!isset($_SESSION['user'])) {
+    header("Location: ../index.php");
+    exit;
+}
 
-$blogs = [
-    "Danau Toba",
-    "Pulau Weh",
-    "Bukit Lawang",
-    "Taman Nasional Way..",
-    "Pulau Belitung",
-    "Gunung Krakatau"
-];
+// Ambil ID wisata dari parameter URL
+$wisataId = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
-$email = isset($_SESSION["email"]) ? $_SESSION["email"] : "Pengguna";
+// Validasi ID wisata
+if ($wisataId <= 0) {
+    die("ID Wisata tidak valid");
+}
+
+// Ambil detail wisata
+$stmt = $conn->prepare("SELECT * FROM wisata WHERE id_wisata = :id");
+$stmt->execute([':id' => $wisataId]);
+$wisata = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$wisata) {
+    die("Wisata tidak ditemukan");
+}
+
+// Track view interaction
+trackUserInteraction($conn, $_SESSION['user']['id'], $wisataId, 'view');
+
+// Ambil analytics
+$analytics = getWisataAnalytics($conn, $wisataId);
+
+// Ambil ulasan
+$reviewStmt = $conn->prepare("
+    SELECT ur.*, u.name_user 
+    FROM user_ratings ur
+    JOIN users u ON ur.user_id = u.id_user
+    WHERE ur.wisata_id = :wisata_id
+    ORDER BY ur.timestamp DESC
+");
+$reviewStmt->execute([':wisata_id' => $wisataId]);
+$reviews = $reviewStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Proses submit ulasan
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_review'])) {
+    $rating = $_POST['rating'] ?? 0;
+    $review = $_POST['review'] ?? '';
+    
+    $result = addUserRating(
+        $conn, 
+        $_SESSION['user']['id'], 
+        $wisataId, 
+        $rating, 
+        $review
+    );
+    
+    if ($result) {
+        // Redirect untuk mencegah pengiriman ulang
+        header("Location: detail.php?id=$wisataId&success=1");
+        exit;
+    }
+}
 ?>
 
 <!doctype html>
@@ -24,59 +69,70 @@ $email = isset($_SESSION["email"]) ? $_SESSION["email"] : "Pengguna";
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detail Page</title>
+    <title>Detail Wisata - <?= htmlspecialchars($wisata['nama_wisata']) ?></title>
 
     <!-- Style CSS & Icon-->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <link rel="stylesheet" href="../asset/css/style.css">
 </head>
 <body>
     <section class="detail-page">
         <nav class="nav-detail">
-            <?php include '../layout/sidebar.php'; ?> 
+            <?php include '../layout/sidebar.php'; ?>
         </nav>
+
         <main class="content-detail">
             <div class="card-detail">
                 <div class="img-detail">
                     <div class="views">
                         <i class="fa-solid fa-eye"></i>
-                        <span>20 Views</span>
+                        <span><?= $analytics['total_views'] ?? 0 ?> Views</span>
                     </div>
-                    <h5 class="img-title">Judul Objek Wisata</h5>
-                    <img src="../asset/img/blog-footage.jpg" class="card-detail w-100" alt="...">
+
+                    <h5 class="img-title"><?= htmlspecialchars($wisata['nama_wisata']) ?></h5>
+
+                    <img src="<?= htmlspecialchars($wisata['image_url'] ?? '../asset/img/blog-footage.jpg') ?>" class="card-detail w-100" alt="<?= htmlspecialchars($wisata['nama_wisata']) ?>">
+
                     <div class="favorite-btn">
-                        <button type="button" class="btn btn-link" onClick="favClick(this)">
+                        <button type="button" class="btn btn-link" onClick="favClick(this)" data-wisata-id="<?= $wisataId ?>">
                             <i class="fa-regular fa-heart fa-lg"></i>
                         </button>
-                    </div> 
+                    </div>
                 </div>
+
                 <div class="information">
                     <div class="location">
                         <i class="fa-solid fa-location-dot fa-lg"></i>
-                        <a href="">Lokasi Publikasi Blog</a>
+                        <a href="#"><?= htmlspecialchars($wisata['lokasi'] ?? 'Lokasi Tidak Diketahui') ?></a>
                     </div>
-                    <div class="date">
-                        <i class="fa-solid fa-calendar-days fa-lg"></i>
-                        <span>12 Januari 2020</span>
+                    <div class="rating">
+                        <i class="fa-solid fa-star"></i>
+                        <span><?= number_format($analytics['average_rating'] ?? 0, 1) ?>/5 
+                            (<?= $analytics['total_ratings'] ?? 0 ?> ulasan)</span>
                     </div>
                 </div>
+
                 <hr class="blog-line">
+
                 <div class="card-body">
-                    <h5 class="card-title fw-bold">Card title</h5>
-                    <p class="card-text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam ut lectus eget est scelerisque fermentum. Mauris aliquam ac nunc in cursus. Proin urna lacus, viverra a ipsum efficitur, tristique egestas eros. Nunc quis turpis vitae mauris varius sagittis in id eros. Integer feugiat tellus et hendrerit interdum. Mauris pharetra est lorem, id fringilla magna cursus non. Donec convallis mauris in ultrices cursus. Duis ultricies enim vitae condimentum euismod. Cras et libero et tortor congue bibendum. Nullam interdum augue accumsan velit fermentum aliquam. Nunc elementum, mauris eget euismod elementum, leo risus porta odio, vestibulum facilisis tellus nibh a leo. Sed vulputate neque sed efficitur tempus. Nam maximus metus a interdum auctor. Fusce porta ex eu est congue, vel aliquet lectus imperdiet. Quisque eros risus, ullamcorper nec mauris quis, venenatis tristique nibh. Fusce semper eu nisl quis tempor.</p>
+                    <h5 class="card-title fw-bold">Deskripsi</h5>
+                    <p class="card-text"><?= htmlspecialchars($wisata['description'] ?? 'Tidak ada deskripsi') ?></p>
                 </div>
+
                 <div class="detail-obwis">
                     <?php include '../layout/detail-obwis.php'; ?>
                 </div>
             </div>
         </main>
     </section>
+
     <!-- JavaScript -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="../asset/js/script.js" defer></script>
 
     <!-- Firebase -->
     <script type="module" src="../asset/js/firebase-auth.js"></script>
+
 </body>
 </html>

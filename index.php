@@ -1,5 +1,5 @@
 <?php
-require 'includes/login.php';
+
 ?>
 
 <!doctype html>
@@ -34,7 +34,7 @@ require 'includes/login.php';
             <form class="login-form" action="" method="POST">
                 <div class="email-form mb-3">
                     <label for="email" class="form-label">Input email</label>
-                    <input type="email" id="email" class="form-control" required name="emailLog">
+                    <input type="email" id="email" class="form-control" required name="emailLog" autocomplete="username">
                 </div>
 
                 <div class="pass-form mb-3">
