@@ -1,30 +1,52 @@
 <?php
-require 'db.php';
+require_once 'db.php';
 session_start();
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $userId = $_SESSION['user']['id'];
-    $wisataId = $_GET['wisataId'];
-    
-    try {
-        $stmt = $conn->prepare("
-            SELECT rating 
-            FROM user_ratings 
-            WHERE id_user = :id_user AND id_wisata = :id_wisata
-        ");
+header('Content-Type: application/json');
+
+if (!isset($_SESSION['user']['id'])) {
+    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+    exit;
+}
+
+$userId = $_SESSION['user']['id'];
+$wisataId = $_GET['wisataId'] ?? null;
+
+if (!$wisataId) {
+    echo json_encode(['success' => false, 'message' => 'Invalid wisata ID']);
+    exit;
+}
+
+try {
+    $stmt = $conn->prepare("
+        SELECT ratings_data 
+        FROM user_ratings 
+        WHERE id_user = :user_id
+        ORDER BY updated_at DESC
+        LIMIT 1
+    ");
+    $stmt->bindParam(':user_id', $userId);
+    $stmt->execute();
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($result) {
+        $ratingsData = json_decode($result['ratings_data'], true);
+        $rating = $ratingsData[$wisataId] ?? 0;
         
-        $stmt->execute([
-            ':id_user' => $userId,
-            ':id_wisata' => $wisataId
-        ]);
-        
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
         echo json_encode([
-            'success' => true,
-            'rating' => $result ? $result['rating'] : 0
+            'success' => true, 
+            'rating' => $rating
         ]);
-    } catch (PDOException $e) {
-        echo json_encode(['success' => false, 'error' => 'Database error']);
+    } else {
+        echo json_encode([
+            'success' => false, 
+            'rating' => 0
+        ]);
     }
+} catch (PDOException $e) {
+    echo json_encode([
+        'success' => false, 
+        'message' => 'Database error: ' . $e->getMessage()
+    ]);
 }
 ?>

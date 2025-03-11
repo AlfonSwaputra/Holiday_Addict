@@ -953,3 +953,19 @@ nav.nav-home {
 .spin {
     animation: rotate 1s linear infinite;
 }
+
+.rating-feedback {
+    display: inline-block;
+    margin-left: 10px;
+    color: #666;
+    font-size: 0.9em;
+    opacity: 0;
+    animation: fadeInOut 2s ease-in-out;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
+}

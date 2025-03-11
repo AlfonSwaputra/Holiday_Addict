@@ -2,15 +2,35 @@
 function favClick(button) {
     const wisataId = button.dataset.wisataId;
     const icon = button.querySelector('i');
-    
-    fetch('../includes/toggle_favorite.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ wisata_id: wisataId })
-    })
-    .then(response => response.json())
+          fetch('../includes/update_rating.php', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                  wisataId: wisataId,
+                  rating: rating
+              })
+          })
+          .then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  // Rating berhasil diupdate di database
+                  console.log('Rating updated:', rating)
+        
+                  // Refresh tampilan rating
+                  ratingPoints.textContent = `(${rating})`
+        
+                  // Update status checked pada bintang
+                  ratingInputs.forEach(input => {
+                      const inputStarNumber = input.id.split('-')[0].replace('star', '')
+                      input.checked = inputStarNumber <= starNumber
+                  })
+              }
+          })
+          .catch(error => {
+              console.error('Error updating rating:', error)
+          })    .then(response => response.json())
     .then(data => {
         if (data.success) {
             icon.classList.toggle('fa-solid', data.action !== 'removed');
@@ -39,11 +59,10 @@ document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll('.favorite-btn button').forEach(button => {
         button.addEventListener('click', function(e) {
             e.preventDefault();
-            this.querySelector('i').classList.toggle('fa-solid');
-            this.querySelector('i').classList.toggle('fa-regular');
             favClick(this);
         });
     });
+    
 
     const loginForm = document.querySelector('.login-form');
     if (loginForm) {
@@ -98,34 +117,17 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    const searchForm = document.querySelector('.search-form');
-    if (searchForm) {
-        searchForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const searchInput = document.getElementById('searchInput');
-            const keyword = searchInput.value.trim();
-
-            if (keyword === '') {
-                alert('Silakan masukkan kata kunci pencarian');
-                return;
-            }
-
-            // Redirect ke halaman home dengan parameter pencarian
-            window.location.href = `../pages/home.php?q=${encodeURIComponent(keyword)}`;
-        });
-    }
-
-
     document.querySelectorAll(".rating-stars").forEach(container => {
         const ratingInputs = container.querySelectorAll("input[type='radio']");
         const ratingPoints = container.querySelector("#rating-points");
         const wisataId = container.closest('.card').dataset.wisataId;
         const rank = container.querySelector("input[type='radio']").name.replace('rating', '');
     
-        // Load existing rating
+        // Load existing rating dari server
         fetch(`../includes/get_user_rating.php?wisataId=${wisataId}`)
             .then(response => response.json())
             .then(data => {
+                console.log('Rating data:', data); // Tambahkan log untuk debugging
                 if (data.success && data.rating > 0) {
                     const starValue = Math.ceil(data.rating / 2);
                     const starInput = container.querySelector(`#star${starValue}-${rank}`);
@@ -134,29 +136,58 @@ document.addEventListener("DOMContentLoaded", function () {
                         ratingPoints.textContent = `(${data.rating})`;
                     }
                 }
+            })
+            .catch(error => {
+                console.error('Error fetching rating:', error);
             });
     
         // Handle rating changes
         ratingInputs.forEach(star => {
-            star.addEventListener("change", function() {
-                const starNumber = this.id.split('-')[0].replace('star', '');
-                const rating = starNumber * 2;
-                ratingPoints.textContent = `(${rating})`;
-    
-                fetch('../includes/update_rating.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        wisataId: wisataId,
-                        rating: rating
-                    })
-                });
+            star.addEventListener("click", function() {
+                const starNumber = parseInt(this.id.split('-')[0].replace('star', ''));
+                const newRating = starNumber * 2;
+                const currentRating = parseInt(ratingPoints.textContent.replace(/[\(\)]/g, '')) || 0;
+                
+                if (newRating === currentRating) {
+                    // Efek kedip
+                    ratingPoints.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        ratingInputs.forEach(input => input.checked = false);
+                        ratingPoints.textContent = "(0)";
+                        ratingPoints.style.opacity = '1';
+        
+                        fetch('../includes/update_rating.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                wisataId: wisataId,
+                                rating: 0
+                            })
+                        });
+                    }, 300);
+                } else {
+                    // Atur rating baru
+                    ratingPoints.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        ratingPoints.textContent = `(${newRating})`;
+                        ratingPoints.style.opacity = '1';
+        
+                        fetch('../includes/update_rating.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                wisataId: wisataId,
+                                rating: newRating
+                            })
+                        });
+                    }, 300);
+                }
             });
-        });
-    });    
-
+        });                             
+    });
+    
     const searchInput = document.getElementById('searchInput');
     const searchIcon = document.getElementById('searchIcon');
     if (searchInput && searchIcon) {
