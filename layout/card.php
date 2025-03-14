@@ -1,32 +1,27 @@
 <?php
-// Default values with null coalescing
+// Parameter untuk membedakan tampilan
+$isNormalCard = $isNormalCard ?? false;
+
+// Default values dengan null coalescing
 $image1 = $wisata['image_url_1'] ?? "../asset/img/default.jpg";
 $image2 = $wisata['image_url_2'] ?? "../asset/img/default.jpg";
 $image3 = $wisata['image_url_3'] ?? "../asset/img/default.jpg";
 $rank = $rank ?? "?";
 $place = $wisata['nama_wisata'] ?? "Nama Objek Wisata Tidak Diketahui";
 
-// Debugging
-error_log("Card Debug: images = $image1, $image2, $image3, rank = $rank, place = $place");
-
-// Tambahkan array gambar trending
-$trendingImages = [];
-for ($i = 1; $i <= 9; $i++) {
-    $trendingImages[] = "../asset/img/trending{$i}.jpg";
-}
+// Cek status favorit dan rekomendasi
 $isFavorited = isWisataFavorited($conn, $_SESSION['user']['id'], $wisata['id_wisata']);
-
-// Gunakan gambar trending berdasarkan rank (siklus dari 1-9)
-$trendingImage = $trendingImages[($rank - 1) % 9];
+$userPreferences = validateUserPreferences($_SESSION['user']['id'], $conn);
+$recommendations = getHybridRecommendationsNew($_SESSION['user']['id']);
 ?>
 
-<section class="card" data-wisata-id="<?= $wisata['id_wisata'] ?? '' ?>">
+<section class="card <?= $isNormalCard ? 'card-normal' : '' ?>" data-wisata-id="<?= $wisata['id_wisata'] ?>">
     <div class="carousel slide" id="carouselCardRecom<?= $rank ?>" data-bs-ride="carousel">
         <div class="favorite-btn">
             <button data-wisata-id="<?= $wisata['id_wisata'] ?>" class="btn">
                 <i class="<?= $isFavorited ? 'fa-solid' : 'fa-regular' ?> fa-heart"></i>
             </button>
-            <?php if ($showRank): ?>
+            <?php if (!$isNormalCard && $showRank): ?>
                 <?php include 'rank.php'; ?>
             <?php endif; ?>
         </div>
@@ -38,13 +33,13 @@ $trendingImage = $trendingImages[($rank - 1) % 9];
 
         <div class="carousel-inner">
             <div class="carousel-item active">
-                <img src="<?= htmlspecialchars($image1) ?>" class="d-block w-100" alt="<?= htmlspecialchars($place) ?>">
+                <img src="<?= htmlspecialchars($image1) ?>" loading="lazy" class="d-block w-100" alt="<?= htmlspecialchars($place) ?>">
             </div>
             <div class="carousel-item">
-                <img src="<?= htmlspecialchars($image2) ?>" class="d-block w-100" alt="<?= htmlspecialchars($place) ?>">
+                <img src="<?= htmlspecialchars($image2) ?>" loading="lazy" class="d-block w-100" alt="<?= htmlspecialchars($place) ?>">
             </div>
             <div class="carousel-item">
-                <img src="<?= htmlspecialchars($image3) ?>" class="d-block w-100" alt="<?= htmlspecialchars($place) ?>">
+                <img src="<?= htmlspecialchars($image3) ?>" loading="lazy" class="d-block w-100" alt="<?= htmlspecialchars($place) ?>">
             </div>
         </div>
 
@@ -64,15 +59,18 @@ $trendingImage = $trendingImages[($rank - 1) % 9];
             </div>
         </div>
 
-        <div class="rating-stars">
+        <div class="rating-stars" data-wisata-id="<?= $wisata['id_wisata'] ?>">
             <div class="rating-score">
                 <span id="rating-points">(0)</span>
             </div>
             <?php for ($i = 5; $i >= 1; $i--): ?>
                 <input class="form-check-input" type="radio" name="rating<?= $rank ?>" id="star<?= $i ?>-<?= $rank ?>">
-                <label for="star<?= $i ?>-<?= $rank ?>">&#9733;</label>
+                <label for="star<?= $i ?>-<?= $rank ?>">★</label>
             <?php endfor; ?>
         </div>
-        <a href="#" class="btn btn-dark">Selengkapnya <i class="fa-solid fa-arrow-right"></i></a>
+        
+        <a href="detail.php?id=<?= $wisata['id_wisata'] ?>&source=recommendation" class="btn btn-dark">
+            Selengkapnya <i class="fa-solid fa-arrow-right"></i>
+        </a>
     </div>
 </section>

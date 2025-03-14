@@ -26,6 +26,7 @@ $email = isset($_SESSION["email"]) ? $_SESSION["email"] : "Pengguna";
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <link rel="stylesheet" href="../asset/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Alice&display=swap" rel="stylesheet">
 </head>
 <body>
     <section class="favorite-page">
@@ -58,11 +59,12 @@ $email = isset($_SESSION["email"]) ? $_SESSION["email"] : "Pengguna";
                             $rank = $index + 1;
                             $place = $wisata['nama_wisata'];
                             $image = $wisata['image_url'] ?? '../asset/img/default.jpg';
+                            $isNormalCard = true;
                             
                             // Simpan variabel untuk digunakan di card-normal.php
                             $_SESSION['current_wisata'] = $wisata;
                             
-                            include '../layout/card-normal.php';
+                            include '../layout/card.php';
                             ?>
                         </div>
                     <?php endforeach; ?>
@@ -73,10 +75,7 @@ $email = isset($_SESSION["email"]) ? $_SESSION["email"] : "Pengguna";
 
     <!-- JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="../asset/js/script.js"></script>
-
-    <!-- Firebase -->
-    <script type="module" src="../asset/js/firebase-auth.js"></script>
+    <script type="module" src="../asset/js/main.js"></script>
 
     <script>
         // Optional: Tambahkan fungsi refresh

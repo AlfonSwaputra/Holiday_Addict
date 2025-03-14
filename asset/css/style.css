@@ -467,31 +467,25 @@ section.card {
     margin-top: 3px;
 }
 
-.favorite-btn button,
-.favorite-btn button:active,
-.favorite-btn button:focus {
+.favorite-btn button {
     background: transparent;
     border: none;
     padding: 5px;
     cursor: pointer;
 }
 
-.favorite-btn i.fa-regular,
-.favorite-btn i.fa-regular:active,
-.favorite-btn i.fa-regular:focus {
-    color: white !important;
+.favorite-btn i {
     transition: color 0.3s ease-in-out;
     font-size: 20px;
     padding: 5px;
 }
 
-.favorite-btn i.fa-solid,
-.favorite-btn i.fa-solid:active,
-.favorite-btn i.fa-solid:focus {
+.favorite-btn i.fa-regular {
+    color: white !important;
+}
+
+.favorite-btn i.fa-solid {
     color: red !important;
-    transition: color 0.3s ease-in-out;
-    padding: 5px;
-    font-size: 20px;
 }
 
 /* Rank System */
@@ -941,19 +935,6 @@ nav.nav-home {
 }
 
 /* Animate */
-@keyframes rotate {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-.spin {
-    animation: rotate 1s linear infinite;
-}
-
 .rating-feedback {
     display: inline-block;
     margin-left: 10px;

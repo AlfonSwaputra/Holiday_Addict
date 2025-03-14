@@ -2,6 +2,10 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+
     # Rewrite rule untuk halaman utama
     RewriteRule ^home/?$ pages/home.php [L]
     RewriteRule ^recommendation/?$ pages/recommendation.php [L]

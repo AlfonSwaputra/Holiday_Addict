@@ -5,7 +5,6 @@ require '../includes/db.php';
 require '../includes/function.php';
 require '../includes/search.php';
 
-// Pastikan user sudah login
 if (!isset($_SESSION['user'])) {
     header("Location: ../index.php");
     exit;
@@ -16,7 +15,6 @@ $userFavorites = getUserFavorites($conn, $user_id);
 $favoritedWisataIds = getUserFavorites($conn, $user_id);
 $recommendations = [];
 
-// Cek apakah ada keyword pencarian
 $keyword = isset($_GET['q']) ? $_GET['q'] : '';
 $searchResults = [];
 
@@ -24,9 +22,23 @@ if (!empty($keyword)) {
     $searchResults = handleSearch($keyword);
 } else {
     try {
+        // Validasi preferensi user
+        $userPreferences = validateUserPreferences($user_id, $conn);
+        
+        // Ambil rekomendasi dari cache atau generate baru
         $recommendations = getCachedRecommendations($user_id, $conn);
+        
+        if (empty($recommendations)) {
+            // Gunakan fungsi yang sudah digabung di function.php
+            $recommendations = processUserPreferences($user_id, $userPreferences);
+            cacheRecommendations($user_id, $recommendations);
+        }
+        
+        trackUserActivity($user_id, 'home', 'view', 'recommendations');
+        
     } catch (Exception $e) {
         error_log("Error in home: " . $e->getMessage());
+        $recommendations = [];
     }
 }
 ?>
@@ -114,9 +126,6 @@ if (!empty($keyword)) {
 
     <!-- JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="../asset/js/script.js"></script>
-
-    <!-- Firebase -->
-    <script type="module" src="../asset/js/firebase-auth.js"></script>
+    <script type="module" src="../asset/js/main.js"></script>
 </body>
 </html>

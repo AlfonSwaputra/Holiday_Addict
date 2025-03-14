@@ -3,65 +3,44 @@ session_start();
 require '../includes/db.php';
 require '../includes/function.php';
 
-// Pastikan user sudah login
+// Validasi login
 if (!isset($_SESSION['user'])) {
     header("Location: ../index.php");
     exit;
 }
 
-// Ambil ID wisata dari parameter URL
+// Ambil dan validasi ID wisata
 $wisataId = isset($_GET['id']) ? intval($_GET['id']) : 0;
-
-// Validasi ID wisata
 if ($wisataId <= 0) {
     die("ID Wisata tidak valid");
 }
 
-// Ambil detail wisata
-$stmt = $conn->prepare("SELECT * FROM wisata WHERE id_wisata = :id");
-$stmt->execute([':id' => $wisataId]);
-$wisata = $stmt->fetch(PDO::FETCH_ASSOC);
-
+// Ambil detail wisata menggunakan fungsi dari function.php
+$wisata = getWisataDetail($wisataId);
 if (!$wisata) {
     die("Wisata tidak ditemukan");
 }
 
-// Track view interaction
-trackUserInteraction($conn, $_SESSION['user']['id'], $wisataId, 'view');
-
-// Ambil analytics
+// Track view dan analytics
+trackUserInteraction($_SESSION['user']['id'], $wisataId, 'view', 'detail_page');
 $analytics = getWisataAnalytics($conn, $wisataId);
 
 // Ambil ulasan
-$reviewStmt = $conn->prepare("
-    SELECT ur.*, u.name_user 
-    FROM user_ratings ur
-    JOIN users u ON ur.user_id = u.id_user
-    WHERE ur.wisata_id = :wisata_id
-    ORDER BY ur.timestamp DESC
-");
-$reviewStmt->execute([':wisata_id' => $wisataId]);
-$reviews = $reviewStmt->fetchAll(PDO::FETCH_ASSOC);
+$reviews = getUserReviews($conn, $wisataId);
 
 // Proses submit ulasan
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_review'])) {
     $rating = $_POST['rating'] ?? 0;
     $review = $_POST['review'] ?? '';
     
-    $result = addUserRating(
-        $conn, 
-        $_SESSION['user']['id'], 
-        $wisataId, 
-        $rating, 
-        $review
-    );
-    
-    if ($result) {
-        // Redirect untuk mencegah pengiriman ulang
+    if (addUserRating($conn, $_SESSION['user']['id'], $wisataId, $rating, $review)) {
         header("Location: detail.php?id=$wisataId&success=1");
         exit;
     }
 }
+
+// Render halaman
+include '../layout/header.php';
 ?>
 
 <!doctype html>
@@ -129,10 +108,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_review'])) {
 
     <!-- JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="../asset/js/script.js" defer></script>
-
-    <!-- Firebase -->
-    <script type="module" src="../asset/js/firebase-auth.js"></script>
-
+    <script type="module" src="../asset/js/main.js"></script>
 </body>
 </html>

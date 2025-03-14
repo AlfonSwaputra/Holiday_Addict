@@ -3,46 +3,35 @@ session_start();
 require '../includes/db.php';
 require '../includes/function.php';
 
-// Pastikan user sudah login
+// Validasi login
 if (!isset($_SESSION['user'])) {
     header("Location: ../index.php");
     exit;
 }
 
-// Mengambil ID pengguna dari session
 $user_id = $_SESSION['user']['id'];
 
-// Langkah 1: Verifikasi apakah user ID ada di tabel users
+// Verifikasi user ID
 $stmt = $conn->prepare("SELECT * FROM users WHERE id_user = :id_user");
 $stmt->bindParam(':id_user', $user_id);
 $stmt->execute();
 
-// Jika ID pengguna tidak ditemukan, redirect atau tampilkan pesan error
 if ($stmt->rowCount() == 0) {
     echo "User tidak ditemukan.";
     exit;
 }
 
-// Langkah 2: Jika user ID valid, lanjutkan dengan menyimpan preferensi
+// Cek preferensi existing
 $stmtPref = $conn->prepare("SELECT * FROM preferences WHERE id_user = :id_user");
 $stmtPref->bindParam(':id_user', $user_id);
 $stmtPref->execute();
 
-// Jika preferensi untuk user_id belum ada, lakukan insert
 if ($stmtPref->rowCount() == 0) {
-    try {
-        $stmt = $conn->prepare("INSERT INTO preferences (id_user) VALUES (:id_user)");
-        $stmt->bindParam(':id_user', $user_id);
-        $stmt->execute();
-    } catch (PDOException $e) {
-        error_log("Error inserting preferences: " . $e->getMessage());
-        // Tambahkan penanganan error yang sesuai
-    }
+    initializeUserPreferences($user_id);
 }
 
-// Jika metode POST dijalankan
+// Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Ambil data dari form
     $categories = [
         'alam' => isset($_POST['alam']) ? 1 : 0,
         'budaya_sejarah' => isset($_POST['budaya_sejarah']) ? 1 : 0,
@@ -53,58 +42,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'relaksasi' => isset($_POST['relaksasi']) ? 1 : 0
     ];
 
-    try {
-        // Reset semua preferensi ke 0 terlebih dahulu
-        $resetStmt = $conn->prepare("
-            UPDATE preferences 
-            SET alam = 0,
-                budaya_sejarah = 0,
-                pantai = 0,
-                kota_belanja = 0,
-                kuliner = 0,
-                petualangan = 0,
-                relaksasi = 0
-            WHERE id_user = :id_user
-        ");
-        $resetStmt->execute([':id_user' => $user_id]);
-
-        // Update dengan preferensi baru
-        $stmt = $conn->prepare("
-            UPDATE preferences
-            SET alam = :alam,
-                budaya_sejarah = :budaya_sejarah,
-                pantai = :pantai,
-                kota_belanja = :kota_belanja,
-                kuliner = :kuliner,
-                petualangan = :petualangan,
-                relaksasi = :relaksasi
-            WHERE id_user = :id_user
-        ");
-
-        $stmt->bindParam(':id_user', $user_id);
-        $stmt->bindParam(':alam', $categories['alam']);
-        $stmt->bindParam(':budaya_sejarah', $categories['budaya_sejarah']);
-        $stmt->bindParam(':pantai', $categories['pantai']);
-        $stmt->bindParam(':kota_belanja', $categories['kota_belanja']);
-        $stmt->bindParam(':kuliner', $categories['kuliner']);
-        $stmt->bindParam(':petualangan', $categories['petualangan']);
-        $stmt->bindParam(':relaksasi', $categories['relaksasi']);
-
-        $stmt->execute();
-
-        // Hapus cache rekomendasi jika ada
+    if (updateUserPreferences($conn, $user_id, $categories)) {
         $cacheFile = __DIR__ . "/../cache/recommendations_{$user_id}.json";
         if (file_exists($cacheFile)) {
             unlink($cacheFile);
         }
-
-        // Redirect ke halaman home
-        header("Location: ../pages/home.php");
+        header("Location: home.php");
         exit;
-
-    } catch (PDOException $e) {
-        error_log("Error updating preferences: " . $e->getMessage());
-        $error_message = "Terjadi kesalahan saat menyimpan preferensi. Silakan coba lagi.";
+    } else {
+        $error_message = "Terjadi kesalahan saat menyimpan preferensi.";
     }
 }
 
@@ -192,6 +138,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <!-- JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-    <script src="../asset/js/script.js"></script>
+    <script type="module" src="../asset/js/main.js"></script>
 </body>
 </html>
