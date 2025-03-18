@@ -1,6 +1,7 @@
 <?php
 header('Content-Type: application/json');
 error_reporting(0);
+ini_set('display_errors', 1);
 
 session_start();
 require 'function.php';
@@ -97,7 +98,15 @@ function handleLogin($data) {
 function handleFavorite($data) {
     global $conn;
     
+    // Tambahkan error logging
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+
+    // Log awal proses
+    error_log("Favorite Action Started: " . json_encode($data));
+    
     if (!isset($_SESSION['user'])) {
+        error_log("Unauthorized access attempt");
         echo json_encode(['success' => false, 'message' => 'Unauthorized']);
         exit;
     }
@@ -106,78 +115,152 @@ function handleFavorite($data) {
     $wisataId = $data['wisataId'];
 
     try {
-        $checkStmt = $conn->prepare("SELECT id_favorite FROM user_favorites WHERE user_id = :user_id AND wisata_id = :wisata_id");
+        // Log detail user dan wisata
+        error_log("User ID: $userId, Wisata ID: $wisataId");
+
+        // Cek apakah sudah di-favorite dengan logging tambahan
+        $checkStmt = $conn->prepare("
+            SELECT id_favorite 
+            FROM user_favorites 
+            WHERE user_id = :user_id AND wisata_id = :wisata_id
+        ");
         $checkStmt->execute([
             ':user_id' => $userId,
             ':wisata_id' => $wisataId
         ]);
-        $exists = $checkStmt->fetch();
+        $exists = $checkStmt->fetch(PDO::FETCH_ASSOC);
+
+        error_log("Favorite exists check: " . ($exists ? 'Yes' : 'No'));
 
         if (!$exists) {
-            $insertStmt = $conn->prepare("INSERT INTO user_favorites (user_id, wisata_id, added_at) VALUES (:user_id, :wisata_id, NOW())");
-            $insertStmt->execute([
+            // Tambah ke favorit
+            $insertStmt = $conn->prepare("
+                INSERT INTO user_favorites (user_id, wisata_id, added_at) 
+                VALUES (:user_id, :wisata_id, NOW())
+            ");
+            $insertResult = $insertStmt->execute([
                 ':user_id' => $userId,
                 ':wisata_id' => $wisataId
             ]);
 
-            trackUserInteraction($conn, $userId, $wisataId, 'favorite');
+            error_log("Insert favorite result: " . ($insertResult ? 'Success' : 'Failed'));
+
+            // Hitung total likes setelah ditambahkan
+            $likesStmt = $conn->prepare("
+                SELECT COUNT(*) as total_likes 
+                FROM user_favorites 
+                WHERE wisata_id = :wisata_id
+            ");
+            $likesStmt->execute([':wisata_id' => $wisataId]);
+            $totalLikes = $likesStmt->fetchColumn();
+
+            error_log("Total likes after adding: $totalLikes");
 
             echo json_encode([
                 'success' => true,
-                'action' => 'added'
+                'action' => 'added',
+                'totalLikes' => $totalLikes
             ]);
         } else {
-            $deleteStmt = $conn->prepare("DELETE FROM user_favorites WHERE user_id = :user_id AND wisata_id = :wisata_id");
-            $deleteStmt->execute([
+            // Hapus dari favorit dengan logging detail
+            $deleteStmt = $conn->prepare("
+                DELETE FROM user_favorites 
+                WHERE user_id = :user_id AND wisata_id = :wisata_id
+            ");
+            $deleteResult = $deleteStmt->execute([
                 ':user_id' => $userId,
                 ':wisata_id' => $wisataId
             ]);
 
+            error_log("Delete favorite result: " . ($deleteResult ? 'Success' : 'Failed'));
+
+            // Hitung total likes setelah dihapus
+            $likesStmt = $conn->prepare("
+                SELECT COUNT(*) as total_likes 
+                FROM user_favorites 
+                WHERE wisata_id = :wisata_id
+            ");
+            $likesStmt->execute([':wisata_id' => $wisataId]);
+            $totalLikes = $likesStmt->fetchColumn();
+
+            error_log("Total likes after removing: $totalLikes");
+
             echo json_encode([
                 'success' => true,
-                'action' => 'removed'
+                'action' => 'removed',
+                'totalLikes' => $totalLikes
             ]);
         }
     } catch (Exception $e) {
+        // Log error secara detail
+        error_log("Favorite Action Error: " . $e->getMessage());
+        error_log("Error Trace: " . $e->getTraceAsString());
+
         echo json_encode([
             'success' => false,
-            'message' => $e->getMessage()
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
         ]);
     }
 }
 function handleRating($data) {
     global $conn;
     
+    // Debug logging
+    error_log("Received rating data: " . print_r($data, true));
+    
     if (!isset($_SESSION['user'])) {
+        http_response_code(401);
         echo json_encode(['success' => false, 'message' => 'Unauthorized']);
         exit;
     }
 
     $userId = $_SESSION['user']['id'];
-    $wisataId = $data['wisataId'];
-    $rating = $data['rating'];
+    $wisataId = $data['wisataId'] ?? null;
+    $rating = $data['rating'] ?? null;
+
+    // Validasi input
+    if ($wisataId === null || $rating === null) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Invalid input']);
+        exit;
+    }
 
     try {
+        // Cek atau buat entri di user_ratings
         $stmt = $conn->prepare("
-            INSERT INTO user_ratings (user_id, wisata_id, rating, rated_at) 
-            VALUES (:user_id, :wisata_id, :rating, NOW())
+            INSERT INTO user_ratings (id_user, ratings_data, created_at, updated_at) 
+            VALUES (:user_id, :ratings_data, NOW(), NOW())
             ON DUPLICATE KEY UPDATE 
-            rating = :rating,
-            rated_at = NOW()
+            ratings_data = JSON_SET(ratings_data, :json_path, :rating),
+            updated_at = NOW()
         ");
 
+        // Siapkan data JSON
+        $jsonPath = "$." . $wisataId;
+        
         $stmt->execute([
             ':user_id' => $userId,
-            ':wisata_id' => $wisataId,
+            ':ratings_data' => json_encode([$wisataId => $rating]),
+            ':json_path' => $jsonPath,
             ':rating' => $rating
         ]);
 
-        echo json_encode(['success' => true]);
-    } catch (Exception $e) {
+        error_log("Rating updated: User $userId, Wisata $wisataId, Rating $rating");
+        
         echo json_encode([
-            'success' => false,
+            'success' => true, 
+            'message' => 'Rating berhasil diupdate'
+        ]);
+    } catch (Exception $e) {
+        error_log("Rating update error: " . $e->getMessage());
+        http_response_code(500);
+        echo json_encode([
+            'success' => false, 
             'message' => $e->getMessage()
         ]);
     }
+    exit;
 }
+
 ?>

@@ -92,12 +92,37 @@ function updateRating(wisataId, rating) {
     .catch(error => console.error('Error:', error));
 }
 
-
 // Fungsi Favorite System
 function favClick(button) {
     const wisataId = button.dataset.wisataId;
     const icon = button.querySelector('i');
+    const likesCountElement = document.querySelector(`.likes-count[data-wisata-id="${wisataId}"]`);
 
+    // Log awal proses
+    console.log('Favorite clicked:', {
+        wisataId: wisataId,
+        currentState: icon.classList.contains('fa-solid') ? 'favorited' : 'not favorited'
+    });
+
+    // Optimistic UI update
+    const isCurrentlyFavorited = icon.classList.contains('fa-solid');
+    
+    // Ubah status like secara langsung
+    icon.classList.toggle('fa-solid', !isCurrentlyFavorited);
+    icon.classList.toggle('fa-regular', isCurrentlyFavorited);
+
+    // Update likes count secara langsung
+    if (likesCountElement) {
+        let currentLikes = parseInt(likesCountElement.textContent);
+        if (isCurrentlyFavorited) {
+            currentLikes--;
+        } else {
+            currentLikes++;
+        }
+        likesCountElement.textContent = `${currentLikes} Likes`;
+    }
+
+    // Kirim request ke server
     fetch('../includes/user_actions.php?action=toggle_favorite', {
         method: 'POST',
         headers: {
@@ -107,25 +132,53 @@ function favClick(button) {
             wisataId: wisataId
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        // Log response status
+        console.log('Response status:', response.status);
+        return response.json();
+    })
     .then(data => {
-        if (data.success) {
-            icon.classList.toggle('fa-solid', data.action !== 'removed');
-            icon.classList.toggle('fa-regular', data.action === 'removed');
+        // Log server response
+        console.log('Server response:', data);
 
-            if (data.action === 'removed' && window.location.pathname.includes('favorite.php')) {
-                const card = button.closest('.col-md-3');
-                if (card) {
-                    card.remove();
-                    if (!document.querySelector('.col-md-3')) {
-                        document.querySelector('.row').innerHTML = `
-                            <div class="col-12 text-center">
-                                <p class="alert alert-info">Anda belum memiliki wisata favorite</p>
-                            </div>`;
-                    }
+        if (!data.success) {
+            // Jika request gagal, kembalikan UI ke kondisi semula
+            icon.classList.toggle('fa-solid', isCurrentlyFavorited);
+            icon.classList.toggle('fa-regular', !isCurrentlyFavorited);
+
+            if (likesCountElement) {
+                let currentLikes = parseInt(likesCountElement.textContent);
+                if (isCurrentlyFavorited) {
+                    currentLikes++;
+                } else {
+                    currentLikes--;
                 }
+                likesCountElement.textContent = `${currentLikes} Likes`;
             }
+
+            // Tampilkan pesan error
+            console.error('Gagal mengubah status favorit');
+            alert('Gagal mengubah status favorit');
         }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        
+        // Kembalikan UI ke kondisi semula jika terjadi error
+        icon.classList.toggle('fa-solid', isCurrentlyFavorited);
+        icon.classList.toggle('fa-regular', !isCurrentlyFavorited);
+
+        if (likesCountElement) {
+            let currentLikes = parseInt(likesCountElement.textContent);
+            if (isCurrentlyFavorited) {
+                currentLikes++;
+            } else {
+                currentLikes--;
+            }
+            likesCountElement.textContent = `${currentLikes} Likes`;
+        }
+
+        alert('Terjadi kesalahan');
     });
 }
 
@@ -149,11 +202,12 @@ document.addEventListener("DOMContentLoaded", function() {
     document.querySelectorAll(".rating-stars").forEach(container => {
         const ratingInputs = container.querySelectorAll("input[type='radio']");
         const ratingPoints = container.querySelector("#rating-points");
-        const wisataId = container.closest('.card').dataset.wisataId;
+        const wisataId = container.dataset.wisataId || 
+                         container.closest('[data-wisata-id]')?.dataset.wisataId;
         const rank = container.querySelector("input[type='radio']").name.replace('rating', '');
-
+    
         // Load existing rating
-        fetch(`../includes/function.php?action=get_user_rating&wisataId=${wisataId}`)
+        fetch(`../includes/get_user_rating.php?wisataId=${wisataId}`)
             .then(response => response.json())
             .then(data => {
                 if (data.success && data.rating > 0) {
@@ -164,8 +218,11 @@ document.addEventListener("DOMContentLoaded", function() {
                         ratingPoints.textContent = `(${data.rating})`;
                     }
                 }
+            })
+            .catch(error => {
+                console.error('Error fetching rating:', error);
             });
-
+    
         // Rating click handlers
         ratingInputs.forEach(star => {
             star.addEventListener("click", function() {
@@ -192,7 +249,7 @@ document.addEventListener("DOMContentLoaded", function() {
             });
         });
     });
-
+    
     // Search functionality
     const searchInput = document.getElementById('searchInput');
     const searchIcon = document.getElementById('searchIcon');

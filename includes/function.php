@@ -488,6 +488,25 @@ if (!function_exists('getFavorites')) {
     }
 }
 
+if (!function_exists('getTotalLikes')) {
+    function getTotalLikes($conn, $wisataId) {
+        try {
+            $stmt = $conn->prepare("
+                SELECT COUNT(*) as total_likes 
+                FROM user_favorites 
+                WHERE wisata_id = :wisata_id
+            ");
+            $stmt->execute([':wisata_id' => $wisataId]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            return $result['total_likes'];
+        } catch (PDOException $e) {
+            error_log("Get total likes error: " . $e->getMessage());
+            return 0;
+        }
+    }
+}
+
 if (!function_exists('trackUserActivity')) {
     function trackUserActivity($userId, $contentId, $type, $action) {
         global $conn;
@@ -517,6 +536,42 @@ if (!function_exists('trackUserActivity')) {
                 $updateStmt->execute([':content_id' => $contentId]);
             }
     
+            return true;
+        } catch (PDOException $e) {
+            error_log("Track activity error: " . $e->getMessage());
+            return false;
+        }
+    }
+}
+
+if (!function_exists('trackUserInteraction')) {
+    function trackUserInteraction($conn, $userId, $contentId, $action) {
+        try {
+            // Log interaksi
+            error_log("User Interaction: User $userId, Content $contentId, Action $action");
+
+            // Insert ke tabel user_interactions
+            $stmt = $conn->prepare("
+                INSERT INTO user_interactions 
+                (user_id, wisata_id, interaction_type, interaction_data, created_at) 
+                VALUES (:user_id, :content_id, :type, :action, NOW())
+            ");
+            
+            $stmt->execute([
+                ':user_id' => $userId,
+                ':content_id' => $contentId,
+                ':type' => 'favorite',
+                ':action' => $action
+            ]);
+
+            // Update popularitas wisata
+            $updateStmt = $conn->prepare("
+                UPDATE wisata 
+                SET popularity = popularity + 1 
+                WHERE id_wisata = :content_id
+            ");
+            $updateStmt->execute([':content_id' => $contentId]);
+
             return true;
         } catch (PDOException $e) {
             error_log("Track activity error: " . $e->getMessage());
@@ -591,6 +646,91 @@ if (!function_exists('getWisataAnalytics')) {
             ];
         } catch (PDOException $e) {
             error_log("Wisata analytics error: " . $e->getMessage());
+            return null;
+        }
+    }
+}
+
+if (!function_exists('getWisataDetail')) {
+    function getWisataDetail($wisataId) {
+        global $conn;
+        
+        try {  
+            // Persiapkan statement SQL untuk mengambil detail wisata dasar
+            $stmt = $conn->prepare("
+                SELECT w.*, 
+                       COUNT(uf.id_favorite) as total_favorites
+                FROM wisata w
+                LEFT JOIN user_favorites uf ON w.id_wisata = uf.wisata_id
+                WHERE w.id_wisata = :wisata_id
+                GROUP BY w.id_wisata
+            ");
+            
+            // Eksekusi statement
+            $stmt->execute([':wisata_id' => $wisataId]);
+            
+            // Ambil detail wisata
+            $wisata = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            // Debug
+            if (!$wisata) {
+                echo "Data tidak ditemukan di database";
+                return null;
+            }
+            
+            // Tambahkan informasi tambahan jika diperlukan
+            $wisata['total_favorites'] = $wisata['total_favorites'] ?? 0;
+            
+            // Ambil rating dari tabel user_ratings dengan struktur JSON
+            $ratingStmt = $conn->prepare("
+                SELECT ratings_data
+                FROM user_ratings
+                WHERE id_user IN (
+                    SELECT id_user FROM user_ratings
+                )
+            ");
+            $ratingStmt->execute();
+            $ratings = $ratingStmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Hitung rating rata-rata
+            $totalRating = 0;
+            $ratingCount = 0;
+            
+            foreach ($ratings as $ratingData) {
+                $ratingsJson = json_decode($ratingData['ratings_data'], true);
+                if (isset($ratingsJson[$wisataId])) {
+                    $totalRating += $ratingsJson[$wisataId];
+                    $ratingCount++;
+                }
+            }
+            
+            $wisata['average_rating'] = $ratingCount > 0 ? round($totalRating / $ratingCount, 2) : 0;
+            $wisata['total_ratings'] = $ratingCount;
+            
+            // Ambil ulasan (jika ada tabel wisata_reviews)
+            try {
+                $reviewsStmt = $conn->prepare("
+                    SELECT wr.*, u.name_user 
+                    FROM wisata_reviews wr
+                    JOIN users u ON wr.user_id = u.id_user
+                    WHERE wr.wisata_id = :wisata_id
+                    ORDER BY wr.created_at DESC
+                    LIMIT 10
+                ");
+                $reviewsStmt->execute([':wisata_id' => $wisataId]);
+                $wisata['reviews'] = $reviewsStmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (PDOException $e) {
+                // Jika tabel belum ada, abaikan error
+                echo "Tabel reviews mungkin belum ada: " . $e->getMessage();
+                $wisata['reviews'] = [];
+            }
+            
+            return $wisata;
+        } catch (PDOException $e) {
+            // Debug
+            echo "Error: " . $e->getMessage();
+            // Log error
+            error_log("Error getting wisata detail: " . $e->getMessage());
             return null;
         }
     }
@@ -674,17 +814,28 @@ if (!function_exists('getUserFavorites')) {
 
 if (!function_exists('isWisataFavorited')) {
     function isWisataFavorited($conn, $userId, $wisataId) {
-        $stmt = $conn->prepare("
-            SELECT COUNT(*) FROM user_favorites 
-            WHERE user_id = :user_id AND wisata_id = :wisata_id
-        ");
-        $stmt->execute([
-            ':user_id' => $userId,
-            ':wisata_id' => $wisataId
-        ]);
-        return $stmt->fetchColumn() > 0;
+        try {
+            $stmt = $conn->prepare("
+                SELECT COUNT(*) FROM user_favorites 
+                WHERE user_id = :user_id AND wisata_id = :wisata_id
+            ");
+            $stmt->execute([
+                ':user_id' => $userId,
+                ':wisata_id' => $wisataId
+            ]);
+            
+            // Log untuk debugging
+            $count = $stmt->fetchColumn();
+            error_log("Favorite check - User: $userId, Wisata: $wisataId, Count: $count");
+            
+            return $count > 0;
+        } catch (PDOException $e) {
+            error_log("Favorite check error: " . $e->getMessage());
+            return false;
+        }
     }
 }
+
 
 if (!function_exists('updateUserPreferences')) {
     function updateUserPreferences($conn, $userId, $categories) {
@@ -914,4 +1065,13 @@ if (!function_exists('processUserPreferences')) {
         }
     }
 }
+
+// Di dalam includes/function.php
+if (!function_exists('getGoogleMapsEmbedUrl')) {
+    function getGoogleMapsEmbedUrl($location, $apiKey) {
+        $encodedLocation = urlencode($location);
+        return "https://www.google.com/maps/embed/v1/place?key={$apiKey}&q={$encodedLocation}";
+    }
+}
+
 ?>

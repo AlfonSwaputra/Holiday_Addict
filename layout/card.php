@@ -11,6 +11,7 @@ $place = $wisata['nama_wisata'] ?? "Nama Objek Wisata Tidak Diketahui";
 
 // Cek status favorit dan rekomendasi
 $isFavorited = isWisataFavorited($conn, $_SESSION['user']['id'], $wisata['id_wisata']);
+$totalLikes = getTotalLikes($conn, $wisata['id_wisata']);
 $userPreferences = validateUserPreferences($_SESSION['user']['id'], $conn);
 $recommendations = getHybridRecommendationsNew($_SESSION['user']['id']);
 ?>
@@ -21,6 +22,9 @@ $recommendations = getHybridRecommendationsNew($_SESSION['user']['id']);
             <button data-wisata-id="<?= $wisata['id_wisata'] ?>" class="btn">
                 <i class="<?= $isFavorited ? 'fa-solid' : 'fa-regular' ?> fa-heart"></i>
             </button>
+            <span class="likes-count" data-wisata-id="<?= $wisata['id_wisata'] ?>">
+                <?= $totalLikes ?> Likes
+            </span>
             <?php if (!$isNormalCard && $showRank): ?>
                 <?php include 'rank.php'; ?>
             <?php endif; ?>

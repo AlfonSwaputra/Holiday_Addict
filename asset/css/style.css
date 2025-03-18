@@ -724,7 +724,8 @@ nav.nav-home {
 }
 
 .information .location,
-.information .date {
+.information .rating,
+.information .reviews {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -737,6 +738,11 @@ nav.nav-home {
 .information .location a {
     color: black;
     text-decoration: none;
+}
+
+.information .rating span.rate-icon {
+    font-size: 22pt;
+    color: #FC0;
 }
 
 .blog-line {
@@ -759,47 +765,56 @@ nav.nav-home {
 .detail-page .content-detail {
     padding: 10px 40px;
     width: 77%;
-    overflow-y: auto;
+    overflow-y: auto;  
+    border: 1px solid;
+}
+
+.content-detail-ekspand {
+    width: 100%;
+}
+
+.content-detail-ekspand h5 {
+    font-size: 20pt;
 }
 
 .card-detail {
+    border: 1px solid;
     width: 100%;
-    height: 100%;
     position: relative;
 }
 
 .img-detail .views {
     position: absolute;
     right: 0;
-    padding: 10px 15px 0px 0px;
     color: white;
     z-index: 1;
+    background-color: black;
+    padding: 4px 10px;
+    margin: 8px;
+    border-radius: 5px;
 }
 
 .content-detail img {
     border-radius: 5px;
-    height: 350px !important;
+    height: 350px;
 }
 
 .detail-page .information {
     display: flex;
     gap: 30px;
-    margin: 10px 0px 5px;
+    margin-bottom: -15px;
 }
 
-.detail-page .card-body {
-    display: flex;
-    flex-direction: column;
-    padding: 10px 0px;
-    gap: 15px;
-    text-align: justify;
+.detail-page .carousel {
+    border: 1px solid;
+    height: fit-content;
 }
 
 .detail-page .img-title {
     position: absolute;
     z-index: 1;
     left: 50%;
-    top: 25%;
+    top: 15%;
     transform: translate(-50%, 0%);
     font-size: 20pt;
     color: white;
@@ -807,11 +822,18 @@ nav.nav-home {
 
 .detail-page .favorite-btn {
     position: absolute;
-    top: 0;
+    top: 8px;
 }
 
 .detail-obwis {
     padding: 20px 0px;
+}
+
+.badge {
+    height: fit-content;
+    padding: 10px 15px ;
+    font-size: 12pt;
+    font-weight: normal;
 }
 
 .list-group {
@@ -820,42 +842,53 @@ nav.nav-home {
     margin: 0;
 }
 
-.list-group .btn {
-    border-radius: 0;
+.hero-section {
+    margin-top: -20px;
 }
 
-.scrollspy-example .f1 {
-    display: flex;
-    flex-direction: row;
-    gap: 50px;
+.detail-wisata-alam {
+    padding: 0;
 }
 
-.scrollspy-example .f3 button {
+.tab-content h3 {
+    font-size: 18pt;
+    font-weight: bold;
+}
+
+.tab-content h4 {
+    font-size: 15pt;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.info-item {
     display: flex;
-    align-items: center;
     gap: 10px;
 }
 
-.list-group .btn:nth-child(1) {
-    border-top-left-radius: 5px;
-    border-bottom-left-radius: 5px;
+.info-item i {
+    margin-top: 10px;
 }
 
-.list-group .btn:nth-child(4) {
-    border-top-right-radius: 5px;
-    border-bottom-right-radius: 5px;
+.maps-container {
+    position: relative;
+    width: 100%;
+    height: 0;
+    padding-bottom: 56.25%; /* Rasio 16:9 */
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.list-group .btn:nth-child(1),
-.list-group .btn:nth-child(2),
-.list-group .btn:nth-child(3) {
-    border-right: none;
+.maps-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
 }
 
-.scrollspy-example h4 {
-    font-size: 14pt;
-    font-weight: bold;
-}
 /* Favorite Page */
 .favorite-page {
     width: 100%;
@@ -863,6 +896,31 @@ nav.nav-home {
 
 .favorite-page .nav-fav {
     width: 23%;
+}
+
+.recom-page .likes-count,
+.home-page .likes-count,
+.favorite-page .likes-count {
+    background-color: white;
+    padding: 1px 5px;
+    border-radius: 5px;
+    margin-top: 7px;
+}
+
+.home-page .likes-count {
+    margin-left: -130px !important;
+}
+
+.favorite-page .likes-count {
+    margin-right: 134px;
+}
+
+.recom-page .favorite-btn {
+    justify-content: left;
+}
+
+.content-home .search-home .likes-count {
+    margin-right: 220px;
 }
 
 .favorite-page .content-fav {

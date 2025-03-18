@@ -33,6 +33,8 @@ if (!empty($keyword)) {
             $recommendations = processUserPreferences($user_id, $userPreferences);
             cacheRecommendations($user_id, $recommendations);
         }
+
+        $recommendations = array_slice($recommendations, 0, 9);
         
         trackUserActivity($user_id, 'home', 'view', 'recommendations');
         
@@ -84,7 +86,7 @@ if (!empty($keyword)) {
                         </div>
                     <?php else: ?>
                         <?php foreach($searchResults as $index => $wisata): ?>
-                            <div class="col-md-4">
+                            <div class="col-md-4 search-home">
                                 <?php
                                 $image1 = $wisata['image_url_1'] ?? "../asset/img/default.jpg";
                                 $image2 = $wisata['image_url_2'] ?? "../asset/img/default.jpg";
@@ -127,5 +129,6 @@ if (!empty($keyword)) {
     <!-- JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="../asset/js/main.js"></script>
+    
 </body>
 </html>
